@@ -37,16 +37,41 @@ func main() {
 			i++
 		case "-hst":
 			drive_header_start = os.Args[i + 1]
-			i++	
+			i++
 		case "-rebuild-bs":
 			rebuild = true
 		}
-	}	
+	}
 
-	contents, err := os.ReadFile(disk)
+	hstvalue_, err := strconv.ParseInt(drive_header_start, 0, 32)
 	if err != nil {
+		fmt.Println("Error: invalid header start location")
 		os.Exit(1)
 	}
+	hstvalue := int(hstvalue_)
+
+	f, err := os.OpenFile(disk, os.O_RDWR | os.O_SYNC, 0)
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+	defer f.Close()
+
+	contents := make([]byte, 512)
+	haddr := (hstvalue / 512) * 512
+	_, err = f.ReadAt(contents, int64(haddr))
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+
+	stage1 := make([]byte, 512)
+	_, err = f.ReadAt(stage1, int64(0))
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+
 
 	svalue, err := strconv.ParseInt(drive_size, 0, 32)
 	if err != nil {
@@ -63,53 +88,48 @@ func main() {
 	if err != nil {
 		fmt.Println("Error: invalid file start location")
 		os.Exit(1)
-	}
-
-	hstvalue_, err := strconv.ParseInt(drive_header_start, 0, 32)
-	if err != nil {
-		fmt.Println("Error: invalid header start location")
-		os.Exit(1)
-	}
-	hstvalue := int(hstvalue_)
+	}	
 
 
 	// LUFS header
-	contents[hstvalue] = byte(0x4C)
-	contents[hstvalue + 1] = byte(0x55)
-	contents[hstvalue + 2] = byte(0x46)
-	contents[hstvalue + 3] = byte(0x53)
+	contents[0] = byte(0x4C)
+	contents[1] = byte(0x55)
+	contents[2] = byte(0x46)
+	contents[3] = byte(0x53)
 	
 	// DRIVE SIZE
-	contents[hstvalue + 4] = byte(svalue >> 24)
-	contents[hstvalue + 5] = byte(svalue >> 16)
-	contents[hstvalue + 6] = byte(svalue >> 8)
-	contents[hstvalue + 7] = byte(svalue & 0xFF)
+	contents[4] = byte(svalue >> 24)
+	contents[5] = byte(svalue >> 16)
+	contents[6] = byte(svalue >> 8)
+	contents[7] = byte(svalue & 0xFF)
 
 	// DRIVE NAME
 	for i := 0; i < 16; i++ {
 		if i < len(drive_name) {
-			contents[(hstvalue + 8) + i] = drive_name[i]
+			contents[8 + i] = drive_name[i]
 		} else {
-			contents[(hstvalue + 8) + i] = byte(0x00)
+			contents[8 + i] = byte(0x00)
 		}
 	}
 
 	// START LOCATION
-	contents[hstvalue + 24] = byte(stvalue >> 24)
-	contents[hstvalue + 25] = byte(stvalue >> 16)
-	contents[hstvalue + 26] = byte(stvalue >> 8)
-	contents[hstvalue + 27] = byte(stvalue & 0xFF)
+	contents[24] = byte(stvalue >> 24)
+	contents[25] = byte(stvalue >> 16)
+	contents[26] = byte(stvalue >> 8)
+	contents[27] = byte(stvalue & 0xFF)
 
 	// NEXT FILE LOCATION
-	contents[hstvalue + 28] = byte(stvalue >> 24)
-	contents[hstvalue + 29] = byte(stvalue >> 16)
-	contents[hstvalue + 30] = byte(stvalue >> 8)
-	contents[hstvalue + 31] = byte(stvalue & 0xFF)	
+	contents[28] = byte(stvalue >> 24)
+	contents[29] = byte(stvalue >> 16)
+	contents[30] = byte(stvalue >> 8)
+	contents[31] = byte(stvalue & 0xFF)	
 
 	if rebuild == true {	
-		contents[492] = byte((hstvalue + 32) >> 8)
-		contents[493] = byte((hstvalue + 32) & 0xFF)
+		stage1[492] = byte((32) >> 8)
+		stage1[493] = byte((32) & 0xFF)
 	}	
 
+	f.WriteAt(stage1, int64(0))
+	f.WriteAt(contents, int64(haddr))
 	os.WriteFile(disk, contents, 0644)
 }
