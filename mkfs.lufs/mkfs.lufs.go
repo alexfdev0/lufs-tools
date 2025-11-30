@@ -4,6 +4,8 @@ import (
 	"os"
 	"strconv"
 	"fmt"
+	"bufio"
+	"time"
 )
 
 func main() {
@@ -49,6 +51,18 @@ func main() {
 		os.Exit(1)
 	}
 	hstvalue := int(hstvalue_)
+
+	fmt.Println("\033[31mWarning: This tool will overwrite portions of your disk. DO NOT USE if you do not know what you're doing as it can damage your disk data.\033[0m")
+	fmt.Println("Press any key to continue...")
+	bufio.NewReader(os.Stdin).ReadBytes('\n')
+
+	
+	fmt.Printf("Overwriting '" + disk + "' in ")
+	for i := 5; i > 0; i-- {
+		fmt.Printf("%d...", i)
+		time.Sleep(time.Duration(1000) * time.Millisecond)
+	}
+	fmt.Printf("\n")
 
 	f, err := os.OpenFile(disk, os.O_RDWR | os.O_SYNC, 0)
 	if err != nil {
