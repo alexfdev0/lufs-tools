@@ -139,8 +139,8 @@ func main() {
 	contents[31] = byte(stvalue & 0xFF)	
 
 	if rebuild == true {	
-		stage1[492] = byte((32) >> 8)
-		stage1[493] = byte((32) & 0xFF)
+		stage1[492] = byte((hstvalue + 32) >> 8)
+		stage1[493] = byte((hstvalue + 32) & 0xFF)
 	}	
 
 	f.WriteAt(stage1, int64(0))
