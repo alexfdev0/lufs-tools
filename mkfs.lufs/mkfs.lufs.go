@@ -4,8 +4,6 @@ import (
 	"os"
 	"strconv"
 	"fmt"
-	"bufio"
-	"time"
 )
 
 func main() {
@@ -52,18 +50,6 @@ func main() {
 	}
 	hstvalue := int(hstvalue_)
 
-	fmt.Println("\033[31mWarning: This tool will overwrite portions of your disk. DO NOT USE if you do not know what you're doing as it can damage your disk data.\033[0m")
-	fmt.Println("Press any key to continue...")
-	bufio.NewReader(os.Stdin).ReadBytes('\n')
-
-	
-	fmt.Printf("Overwriting '" + disk + "' in ")
-	for i := 5; i > 0; i-- {
-		fmt.Printf("%d...", i)
-		time.Sleep(time.Duration(1000) * time.Millisecond)
-	}
-	fmt.Printf("\n")
-
 	f, err := os.OpenFile(disk, os.O_RDWR | os.O_SYNC, 0)
 	if err != nil {
 		fmt.Println(err)
@@ -72,15 +58,14 @@ func main() {
 	defer f.Close()
 
 	contents := make([]byte, 512)
-	haddr := (hstvalue / 512) * 512
-	_, err = f.ReadAt(contents, int64(haddr))
+	_, err = f.ReadAt(contents, int64((hstvalue / 512) * 512))
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)
 	}
 
-	stage1 := make([]byte, 512)
-	_, err = f.ReadAt(stage1, int64(0))
+	bs := make([]byte, 512)
+	_, err = f.ReadAt(bs, int64(0))
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)
@@ -120,9 +105,9 @@ func main() {
 	// DRIVE NAME
 	for i := 0; i < 16; i++ {
 		if i < len(drive_name) {
-			contents[8 + i] = drive_name[i]
+			contents[(8) + i] = drive_name[i]
 		} else {
-			contents[8 + i] = byte(0x00)
+			contents[(8) + i] = byte(0x00)
 		}
 	}
 
@@ -139,11 +124,19 @@ func main() {
 	contents[31] = byte(stvalue & 0xFF)	
 
 	if rebuild == true {	
-		stage1[492] = byte((hstvalue + 32) >> 8)
-		stage1[493] = byte((hstvalue + 32) & 0xFF)
+		bs[492] = byte((hstvalue + 32) >> 8)
+		bs[493] = byte((hstvalue + 32) & 0xFF)
 	}	
 
-	f.WriteAt(stage1, int64(0))
-	f.WriteAt(contents, int64(haddr))
-	os.WriteFile(disk, contents, 0644)
+	_, err = f.WriteAt(contents, int64((hstvalue / 512) * 512))
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+
+	_, err = f.WriteAt(bs, int64(0))
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
 }
